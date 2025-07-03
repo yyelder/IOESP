@@ -78,22 +78,22 @@ onMounted(() => {
 function init() {
   // 避免重复监听，或者将 on 功能写到一个统一的地方，只加载一次
   if (ipc && ipc.removeAllListeners) {
-    ipc.removeAllListeners(ipcApiRoute.framework.ipcSendMsg);
-    ipc.on(ipcApiRoute.framework.ipcSendMsg, (event, result) => {
-      console.log('[ipcRenderer] [socketMsgStart] result:', result);
+  ipc.removeAllListeners(ipcApiRoute.framework.ipcSendMsg);
+  ipc.on(ipcApiRoute.framework.ipcSendMsg, (event, result) => {
+    console.log('[ipcRenderer] [socketMsgStart] result:', result);
 
-      messageString.value = result;
-      // 调用后端的另一个接口
+    messageString.value = result;
+    // 调用后端的另一个接口
       if (event && event.sender && event.sender.send) {
-        event.sender.send(ipcApiRoute.framework.hello, 'electron-egg');
+    event.sender.send(ipcApiRoute.framework.hello, 'electron-egg');
       }
-    })
+  })
 
-    // 监听 窗口2 发来的消息
-    ipc.removeAllListeners(ipcApiRoute.os.window2ToWindow1);
-    ipc.on(ipcApiRoute.os.window2ToWindow1, (event, arg) => {
-      message.info(arg);
-    })
+  // 监听 窗口2 发来的消息
+  ipc.removeAllListeners(ipcApiRoute.os.window2ToWindow1);
+  ipc.on(ipcApiRoute.os.window2ToWindow1, (event, arg) => {
+    message.info(arg);
+  })
   }
 }
 
@@ -103,7 +103,7 @@ function sendMsgStart() {
     content: '开始'
   }
   if (ipc && ipc.send) {
-    ipc.send(ipcApiRoute.framework.ipcSendMsg, params)
+  ipc.send(ipcApiRoute.framework.ipcSendMsg, params)
   }
 }
 
@@ -113,49 +113,49 @@ function sendMsgStop() {
     content: ''
   }
   if (ipc && ipc.send) {
-    ipc.send(ipcApiRoute.framework.ipcSendMsg, params)
+  ipc.send(ipcApiRoute.framework.ipcSendMsg, params)
   }
 }
 
 function handleInvoke() {
   if (ipc && ipc.invoke) {
-    ipc.invoke(ipcApiRoute.framework.ipcInvokeMsg, '异步-回调').then(r => {
-      console.log('r:', r);
-      message1.value = r;
-    });
+  ipc.invoke(ipcApiRoute.framework.ipcInvokeMsg, '异步-回调').then(r => {
+    console.log('r:', r);
+    message1.value = r;
+  });
   }
 }
 
 async function handleInvoke2() {
   if (ipc && ipc.invoke) {
-    const msg = await ipc.invoke(ipcApiRoute.framework.ipcInvokeMsg, '异步');
-    console.log('msg:', msg);
-    message2.value = msg;
+  const msg = await ipc.invoke(ipcApiRoute.framework.ipcInvokeMsg, '异步');
+  console.log('msg:', msg);
+  message2.value = msg;
   }
 }
 
 function handleSendSync() {
   if (ipc && ipc.sendSync) {
-    const msg = ipc.sendSync(ipcApiRoute.framework.ipcSendSyncMsg, '同步');
-    message3.value = msg;
+  const msg = ipc.sendSync(ipcApiRoute.framework.ipcSendSyncMsg, '同步');
+  message3.value = msg;
   }
 }
 
 function createWindow() {
   if (ipc && ipc.invoke) {
-    ipc.invoke(ipcApiRoute.os.createWindow, vueItem).then(wcid => {
-      console.log('[createWindow] wcid:', wcid);
-    })
+  ipc.invoke(ipcApiRoute.os.createWindow, vueItem).then(wcid => {
+    console.log('[createWindow] wcid:', wcid);
+  })
   }
 }
 
 async function sendTosubWindow() {
   if (ipc && ipc.invoke) {
-    const params = {
-      receiver: 'window2',
-      content: '窗口1给窗口2发送消息'
-    }
-    ipc.invoke(ipcApiRoute.os.window1ToWindow2, params)
+  const params = {
+    receiver: 'window2',
+    content: '窗口1给窗口2发送消息'
+  }
+  ipc.invoke(ipcApiRoute.os.window1ToWindow2, params)
   }
 }
 </script>

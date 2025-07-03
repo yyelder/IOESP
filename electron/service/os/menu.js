@@ -3,6 +3,8 @@
 const { Menu, app: electronApp } = require('electron');
 const { getMainWindow } = require('ee-core/electron');
 const { logger } = require('ee-core/log');
+const Store = require('electron-store');
+const { ipcMain } = require('electron');
 
 /**
  * 应用菜单服务
@@ -13,6 +15,8 @@ class MenuService {
   constructor() {
     this.mainWindow = null;
     this.isAlwaysOnTop = false;
+    this.store = new Store();
+    this.showWelcomePage = this.store.get('showWelcomePage', true);
   }
 
   /**
@@ -22,6 +26,7 @@ class MenuService {
     logger.info('[menu] load');
 
     this.mainWindow = getMainWindow();
+    const self = this;
     
     // 创建菜单模板
     const template = [
@@ -147,6 +152,15 @@ class MenuService {
           },
           { type: 'separator' },
           {
+            label: '显示欢迎页',
+            type: 'checkbox',
+            checked: this.showWelcomePage,
+            click: (menuItem) => {
+              self.toggleWelcomePage(menuItem);
+            }
+          },
+          { type: 'separator' },
+          {
             label: '置顶窗口',
             type: 'checkbox',
             checked: this.isAlwaysOnTop,
@@ -253,9 +267,46 @@ class MenuService {
   getAlwaysOnTopStatus() {
     return this.isAlwaysOnTop;
   }
+
+  toggleWelcomePage(menuItem) {
+    this.showWelcomePage = !this.showWelcomePage;
+    this.store.set('showWelcomePage', this.showWelcomePage);
+    if (menuItem) {
+      menuItem.checked = this.showWelcomePage;
+    }
+    // 通知渲染进程
+    if (this.mainWindow) {
+      this.mainWindow.webContents.send('toggle-welcome-page', this.showWelcomePage);
+    }
+    logger.info(`[menu] 显示欢迎页: ${this.showWelcomePage ? '开启' : '关闭'}`);
+  }
+
+  getWelcomePageStatus() {
+    return this.showWelcomePage;
+  }
 }
 
 MenuService.toString = () => '[class MenuService]';
+
+// 注册IPC事件，供渲染进程获取欢迎页状态
+ipcMain.handle('get-welcome-page-status', (event) => {
+  const menuService = require('./menu').menuService;
+  return { showWelcomePage: menuService.getWelcomePageStatus() };
+});
+
+// 注册IPC事件，允许渲染进程主动设置欢迎页状态
+ipcMain.handle('set-welcome-page-status', (event, status) => {
+  const menuService = require('./menu').menuService;
+  menuService.showWelcomePage = status;
+  menuService.store.set('showWelcomePage', status);
+  // 更新菜单勾选
+  menuService.create();
+  // 通知渲染进程
+  if (menuService.mainWindow) {
+    menuService.mainWindow.webContents.send('toggle-welcome-page', status);
+  }
+  return { showWelcomePage: status };
+});
 
 module.exports = {
   menuService: new MenuService()

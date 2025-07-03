@@ -22,12 +22,8 @@ const constantRouterMap = [
   {
     path: '/',
     component: () => import('@/layouts/AppSider.vue'),
+    redirect: '/framework',
     children: [
-      {
-        path: '',
-        name: 'Home',
-        component: () => import('@/views/Home.vue')
-      },
       {
         path: '/framework',
         name: 'Framework',

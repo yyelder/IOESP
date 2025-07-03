@@ -10,7 +10,7 @@ class SqlitedbService extends BasedbService {
 
   constructor () {
     const options = {
-      dbname: 'sqlite-demo.db',
+      dbname: 'sqliteDB.db',
     }
     super(options);
     this.userTableName = 'user';

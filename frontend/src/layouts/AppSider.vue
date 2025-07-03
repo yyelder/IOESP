@@ -89,16 +89,12 @@
       <!-- 内容区域 - 互斥显示三种状态 -->
       <a-layout-content class="layout-content">
         <!-- 状态1：欢迎界面 -->
-        <div class="content-welcome" v-if="showWelcome && router.currentRoute.value.name === 'Home'">
-          <router-view />
+        <div class="content-welcome" v-if="welcomeModalVisible">
+          <a-modal v-model="welcomeModalVisible" title="欢迎" @cancel="closeWelcomeModal" :footer="null">
+            <div style="text-align:center;font-size:18px;">欢迎使用本软件！</div>
+          </a-modal>
         </div>
-
-        <!-- 状态2：文件编辑器（全屏） -->
-        <div class="content-editor-full" v-else-if="hasActiveFile">
-          <CoderContent ref="coderContentRef" />
-        </div>
-
-        <!-- 状态3：导航页面 -->
+        <!-- 状态2：导航页面 -->
         <div class="content-nav-page" v-else>
           <router-view />
         </div>
@@ -114,6 +110,7 @@ import globalComponents from '@/components/global';
 import McuConfigPanel from '@/views/mcuConfig/index.vue';
 import CoderContent from '@/views/mcuConfig/Editor/coderContent.vue';
 import { ipcApiRoute } from '@/api';
+import { Modal } from 'ant-design-vue';
 
 const { iconFont: IconFont } = globalComponents;
 
@@ -123,8 +120,7 @@ const current = ref('menu_1');
 const leftPanelWidth = ref(350);
 const siderCollapsed = ref(false);
 const isAlwaysOnTop = ref(false);
-const hasActiveFile = ref(false);
-const showWelcome = ref(true);
+const welcomeModalVisible = ref(false);
 
 // 选中的单片机信息
 const selectedMcu = ref({
@@ -139,25 +135,25 @@ const selectedMcu = ref({
 const menu = ref({
   'menu_1': {
     icon: 'icon-setting',
-    title: 'PinoutConfig',
+    title: '引脚配置',
     pageName: 'PinoutConfig',
     params: {}
   },
   'menu_2': {
     icon: 'icon-clock-circle',
-    title: 'ClockConfig',
+    title: '时钟配置',
     pageName: 'ClockConfig',
     params: {}
   },
   'menu_3': {
     icon: 'icon-project',
-    title: 'ProjectManager',
+    title: '项目管理',
     pageName: 'ProjectManager',
     params: {}
   },
   'menu_4': {
     icon: 'icon-tool',
-    title: 'Tools',
+    title: '工具',
     pageName: 'Tools',
     params: {}
   },
@@ -193,30 +189,20 @@ onMounted(() => {
   loadSelectedMcu();
   loadAlwaysOnTopStatus();
 
-  // 监听localStorage变化
-  window.addEventListener('storage', handleStorageChange);
-
-  // 监听文件选择事件
-  window.addEventListener('fileSelected', handleFileSelected);
-
-  // 监听编辑器关闭事件
-  window.addEventListener('editorClosed', handleEditorClosed);
-
-  // 监听关闭欢迎界面事件
-  window.addEventListener('closeWelcome', closeWelcome);
-
-  // 检查是否有已保存的文件信息
-  checkActiveFile();
-});
-
-// 监听localStorage变化
-function handleStorageChange(e) {
-  if (e.key === 'selectedMicrocontroller') {
-    loadSelectedMcu();
-  } else if (e.key === 'currentFile') {
-    checkActiveFile();
+  // 监听主进程菜单切换欢迎页事件
+  if (window.require) {
+    const { ipcRenderer } = window.require('electron');
+    ipcRenderer.on('toggle-welcome-page', (event, status) => {
+      welcomeModalVisible.value = !!status;
+    });
+    // 获取初始欢迎页状态
+    ipcRenderer.invoke('get-welcome-page-status').then(res => {
+      if (typeof res.showWelcomePage === 'boolean') {
+        welcomeModalVisible.value = !!res.showWelcomePage;
+      }
+    });
   }
-}
+});
 
 function loadSelectedMcu() {
   const mcuData = localStorage.getItem('selectedMicrocontroller');
@@ -237,8 +223,7 @@ function menuHandle(e) {
   console.log('sider menu current:', current.value);
 
   // 关闭欢迎界面和编辑器
-  showWelcome.value = false;
-  hasActiveFile.value = false;
+  welcomeModalVisible.value = false;
 
   const linkInfo = menu.value[current.value];
   console.log('[home] load linkInfo:', linkInfo);
@@ -248,16 +233,14 @@ function menuHandle(e) {
 function handleCodeGen() {
   console.log('CodeGen button clicked');
   // 关闭欢迎界面和编辑器
-  showWelcome.value = false;
-  hasActiveFile.value = false;
+  welcomeModalVisible.value = false;
   // 跳转到单片机选择页面
   router.push('/microcontroller/choose');
 }
 
 function goToSelectPage() {
   // 关闭欢迎界面和编辑器
-  showWelcome.value = false;
-  hasActiveFile.value = false;
+  welcomeModalVisible.value = false;
   router.push('/microcontroller/choose');
 }
 
@@ -318,43 +301,12 @@ async function toggleAlwaysOnTop() {
   }
 }
 
-// 处理文件选择事件
-function handleFileSelected(event) {
-  hasActiveFile.value = true;
-  showWelcome.value = false; // 关闭欢迎界面
-  console.log('文件已选择，显示编辑器');
-}
-
-// 处理编辑器关闭事件
-function handleEditorClosed(event) {
-  hasActiveFile.value = false;
-  showWelcome.value = true; // 显示欢迎界面
-  console.log('编辑器已关闭，显示欢迎界面');
-}
-
-// 检查是否有活跃的文件
-function checkActiveFile() {
-  const currentFile = localStorage.getItem('currentFile');
-  if (currentFile) {
-    try {
-      const fileInfo = JSON.parse(currentFile);
-      hasActiveFile.value = !!fileInfo.name;
-    } catch (error) {
-      console.error('解析文件信息失败:', error);
-      hasActiveFile.value = false;
-    }
-  } else {
-    hasActiveFile.value = false;
-  }
-}
-
 // 关闭欢迎界面
-function closeWelcome() {
-  showWelcome.value = false;
-  hasActiveFile.value = false; // 确保编辑器也关闭
-  // 如果当前在首页，跳转到框架页面
-  if (router.currentRoute.value.name === 'Home') {
-    router.push('/framework');
+function closeWelcomeModal() {
+  welcomeModalVisible.value = false;
+  if (window.require) {
+    const { ipcRenderer } = window.require('electron');
+    ipcRenderer.invoke('set-welcome-page-status', false);
   }
 }
 </script>
@@ -507,12 +459,6 @@ function closeWelcome() {
 .content-welcome {
   flex: 1;
   background: transparent;
-  overflow: hidden;
-}
-
-.content-editor-full {
-  flex: 1;
-  background: #1e1e1e;
   overflow: hidden;
 }
 
